@@ -1,37 +1,47 @@
-var database = require("../database/config");
+const database = require("../database/config");
 
-function listar() {
-  var instrucao = `select email from usuario;`;
-  return database.executar(instrucao);
+async function autenticar(email, senha) {
+    console.log("ACESSEI O USUARIO MODEL \n \n\t\t >> Se aqui der erro de 'Error: connect ECONNREFUSED',\n \t\t >> verifique suas credenciais de acesso ao banco\n \t\t >> e se o servidor de seu BD está rodando corretamente. \n\n function autenticar(): ", email);
+
+    // Consulta parametrizada para evitar injeção de SQL
+    const instrucaoSql = `
+        SELECT id, nome, email, fk_empresa as empresaId
+        FROM usuario
+        WHERE email = ? AND senha = ?;
+    `;
+    
+    console.log("Executando a instrução SQL: \n" + instrucaoSql);
+
+    try {
+        const [resultados] = await database.executar(instrucaoSql, [email, senha]);
+        return resultados;
+    } catch (erro) {
+        console.error("Erro ao executar a instrução SQL: ", erro.message || erro);
+        throw erro;
+    }
 }
 
-function entrar(email, senha) {
-  var instrucao = ''
-  if (process.env.AMBIENTE_PROCESSO == "producao") {
-    instrucao = `SELECT 
-    (SELECT SUBSTRING(nome, 1, CHARINDEX(' ', nome + ' ') - 1) AS primeiro_nome FROM usuario WHERE email = '${email}' AND senha = (HASHBYTES('SHA2_256','${senha}'))) as nome,nome as nomeCompleto, idUsuario, email, cpf, senha, cargo, fkEmpresa FROM usuario WHERE email = '${email}' AND senha = (HASHBYTES('SHA2_256','${senha}'));`;
-  } else {
-    instrucao = `SELECT * FROM usuario WHERE email = '${email}' AND senha = sha2('${senha}', 256);`;
-  }
-  return database.executar(instrucao);
+async function cadastrar(nome, email, senha, fkEmpresa) {
+    console.log("ACESSEI O USUARIO MODEL \n \n\t\t >> Se aqui der erro de 'Error: connect ECONNREFUSED',\n \t\t >> verifique suas credenciais de acesso ao banco\n \t\t >> e se o servidor de seu BD está rodando corretamente. \n\n function cadastrar():", nome, email);
+
+    // Consulta parametrizada para evitar injeção de SQL
+    const instrucaoSql = `
+        INSERT INTO usuario (nome, email, senha, fk_empresa)
+        VALUES (?, ?, ?, ?);
+    `;
+    
+    console.log("Executando a instrução SQL: \n" + instrucaoSql);
+
+    try {
+        const [resultados] = await database.executar(instrucaoSql, [nome, email, senha, fkEmpresa]);
+        return resultados;
+    } catch (erro) {
+        console.error("Erro ao executar a instrução SQL: ", erro.message || erro);
+        throw erro;
+    }
 }
-
-function cadastrar(nome, email, cpf, senha) {
-  var instrucao = ''
-  if (process.env.AMBIENTE_PROCESSO == "producao") {
-    instrucao = `insert into [dbo].[usuario] (nome, email, cpf, senha, cargo) values ('${nome}','${email}','${cpf}',HASHBYTES('SHA2_256','${senha}'),'Dono');`;
-  } else if (process.env.AMBIENTE_PROCESSO == "desenvolvimento") {
-    instrucao = `INSERT INTO usuario (nome, email, cpf, senha, cargo ) VALUES ('${nome}', '${email}','${cpf}',sha2('${senha}', 256),'Dono');`;
-  } else {
-    return
-  }
-  return database.executar(instrucao);
-}
-
-
 
 module.exports = {
-  cadastrar,
-  entrar,
-  listar,
+    autenticar,
+    cadastrar
 };
